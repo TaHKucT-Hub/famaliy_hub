@@ -1,7 +1,7 @@
 /* ============================================================
    Интеграция с VK Bridge.
-   Работает и внутри VK Mini App, и автономно (в обычном браузере
-   или на Render-превью) — во втором случае просто остаётся демо.
+   Работает и внутри VK Mini App, и автономно (в обычном браузере) —
+   во втором случае авторизация идёт в dev-режиме бэкенда (см. README).
    ============================================================ */
 (function () {
   "use strict";
@@ -12,38 +12,40 @@
   FH.vk = {
     available: !!bridge,
 
-    // Инициализация + подтягивание данных пользователя и темы
-    init: function (onThemeChange) {
-      if (!bridge) return Promise.resolve(false);
+    // vk_* параметры запуска (+ sign) — сервер проверяет подпись VK по ним.
+    getLaunchParams: function () {
+      var out = {};
+      new URLSearchParams(window.location.search).forEach(function (v, k) { out[k] = v; });
+      if (!bridge) return Promise.resolve(out);
+      return bridge.send("VKWebAppGetLaunchParams")
+        .then(function (p) { return Object.assign(out, p || {}); })
+        .catch(function () { return out; });
+    },
 
-      // Тема из VK (light / dark)
+    // Имя/фото реального пользователя VK — для профиля при первой авторизации.
+    getUserInfoSafe: function () {
+      if (!bridge) return Promise.resolve({});
+      return bridge.send("VKWebAppGetUserInfo")
+        .then(function (info) {
+          if (!info) return {};
+          var name = [info.first_name, info.last_name].filter(Boolean).join(" ");
+          return { name: name, photo_url: info.photo_200 || info.photo_100 || "" };
+        })
+        .catch(function () { return {}; });
+    },
+
+    // Инициализация моста + подписка на смену темы VK (light/dark)
+    initTheme: function (onThemeChange) {
+      if (!bridge) return Promise.resolve(false);
       try {
         bridge.subscribe(function (e) {
           if (e && e.detail && e.detail.type === "VKWebAppUpdateConfig") {
             var scheme = e.detail.data && (e.detail.data.scheme || e.detail.data.appearance);
-            if (scheme && onThemeChange) {
-              onThemeChange(/dark|space_gray/.test(scheme) ? "dark" : "light");
-            }
+            if (scheme && onThemeChange) onThemeChange(/dark|space_gray/.test(scheme) ? "dark" : "light");
           }
         });
       } catch (e) {}
-
-      return bridge.send("VKWebAppInit", {})
-        .then(function () {
-          // Реальный пользователь VK становится текущим участником (Папа)
-          return bridge.send("VKWebAppGetUserInfo").catch(function () { return null; });
-        })
-        .then(function (info) {
-          if (info && (info.first_name || info.photo_100)) {
-            var me = FH.state.users[0]; // "dad" — точка входа
-            if (info.first_name) me.name = info.first_name;
-            if (info.photo_100) me.photo = info.photo_100;
-            FH.state.meId = me.id;
-            FH.save();
-          }
-          return true;
-        })
-        .catch(function () { return false; });
+      return bridge.send("VKWebAppInit", {}).then(function () { return true; }).catch(function () { return false; });
     },
 
     // Тактильная отдача при награде (если поддерживается устройством)

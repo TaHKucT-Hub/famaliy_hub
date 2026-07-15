@@ -62,7 +62,7 @@
     return audioCtx;
   }
   FH.playCoin = function () {
-    if (!FH.state.sound) return;
+    if (!FH.prefs.sound) return;
     var ctx = ensureCtx(); if (!ctx) return;
     if (ctx.state === "suspended") { try { ctx.resume(); } catch (e) {} }
     [880, 1320].forEach(function (freq, i) {
@@ -77,7 +77,7 @@
     });
   };
   FH.playChime = function () {
-    if (!FH.state.sound) return;
+    if (!FH.prefs.sound) return;
     var ctx = ensureCtx(); if (!ctx) return;
     if (ctx.state === "suspended") { try { ctx.resume(); } catch (e) {} }
     [523, 659, 784, 1046].forEach(function (freq, i) {

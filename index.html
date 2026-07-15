@@ -16,7 +16,7 @@
       <div class="spacer"></div>
       <button class="iconbtn" id="soundBtn" title="Звук">🔈</button>
       <button class="iconbtn" id="themeBtn" title="Тема">🌙</button>
-      <div class="me-chip" id="meChip" title="Сменить участника">
+      <div class="me-chip" id="meChip" title="Профиль">
         <span class="av" id="meAv">👨</span>
         <span class="hp"><span id="meHearts">0</span>♥</span>
       </div>
@@ -29,14 +29,18 @@
 
   <!-- Онбординг -->
   <div class="onb" id="onb" hidden></div>
+  <!-- Создать / вступить в семью -->
+  <div class="onb" id="familySetup" hidden></div>
 
   <!-- Модалка / тост / эффекты -->
   <div class="backdrop" id="backdrop"><div class="sheet" id="sheet"></div></div>
   <div class="toast" id="toast"></div>
   <div class="goldflash" id="goldflash"></div>
 
-  <!-- Порядок важен: сначала данные и эффекты, затем рендер, VK и запуск -->
+  <!-- Порядок важен: сначала данные, API-клиент и эффекты, затем рендер, VK и запуск -->
   <script src="./src/state.js"></script>
+  <script src="./src/api.js"></script>
+  <script src="./src/ws.js"></script>
   <script src="./src/effects.js"></script>
   <script src="./src/render.js"></script>
   <script src="./src/vk.js"></script>

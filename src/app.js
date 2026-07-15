@@ -6,6 +6,8 @@
   window.FH = window.FH || {};
 
   var tab = "home";
+  var feedSub = "wall";
+  var openPostId = null;
   var screenEl = document.getElementById("screen");
 
   // ---- Применение темы ----
@@ -34,13 +36,103 @@
     syncMe();
     document.getElementById("nav").innerHTML = FH.renderNav(tab);
     if (tab === "home")   screenEl.innerHTML = FH.viewHome();
+    if (tab === "feed")   screenEl.innerHTML = FH.viewFeed(feedSub, openPostId);
     if (tab === "tasks")  screenEl.innerHTML = FH.viewTasks();
     if (tab === "shop")   screenEl.innerHTML = FH.viewShop();
     if (tab === "family") screenEl.innerHTML = FH.viewFamily();
     if (tab === "me")     screenEl.innerHTML = FH.viewProfile();
-    screenEl.scrollTop = 0;
+    if (tab === "feed" && feedSub === "chat") screenEl.scrollTop = screenEl.scrollHeight;
+    else screenEl.scrollTop = 0;
   }
   FH.render = render;
+
+  // ---- Лента и чат: демо-симуляция активности семьи ----
+  var CHAT_REPLIES = ["Ого, круто! 😄", "+1", "Само собой 👍", "Сделаю позже", "Ахах, супер!",
+    "А во сколько?", "Я за 🙌", "Не забудьте про меня!", "😍😍", "Отлично, ждём!"];
+  var POST_COMMENTS = ["Красота! 😍", "Молодец!", "Вот это да!", "Обязательно попробую", "👏👏👏", "Горжусь тобой!"];
+
+  function randomOther(excludeId) {
+    var others = FH.state.users.filter(function (u) { return u.id !== excludeId; });
+    return others[Math.floor(Math.random() * others.length)].id;
+  }
+  function findPost(id) {
+    var s = FH.state;
+    for (var i = 0; i < s.posts.length; i++) if (s.posts[i].id === id) return s.posts[i];
+    return null;
+  }
+
+  function scheduleChatReply() {
+    if (Math.random() > 0.65) return;
+    setTimeout(function () {
+      var s = FH.state;
+      var from = randomOther(s.meId);
+      s.messages.push({ id: FH.uid(), who: from, text: CHAT_REPLIES[Math.floor(Math.random() * CHAT_REPLIES.length)], ts: Date.now() });
+      FH.save();
+      if (tab === "feed" && feedSub === "chat") render();
+    }, 1200 + Math.random() * 1800);
+  }
+
+  function scheduleWallEngagement(postId) {
+    setTimeout(function () {
+      var p = findPost(postId); if (!p) return;
+      var from = randomOther(FH.state.meId);
+      if (p.likes.indexOf(from) === -1) p.likes.push(from);
+      FH.save();
+      if (tab === "feed" && feedSub !== "chat") render();
+    }, 1500 + Math.random() * 2000);
+    if (Math.random() < 0.5) {
+      setTimeout(function () {
+        var p = findPost(postId); if (!p) return;
+        var from = randomOther(FH.state.meId);
+        p.comments.push({ id: FH.uid(), who: from, text: POST_COMMENTS[Math.floor(Math.random() * POST_COMMENTS.length)], ts: Date.now() });
+        FH.save();
+        if (tab === "feed" && feedSub !== "chat") render();
+      }, 3500 + Math.random() * 2500);
+    }
+  }
+
+  function sendPost() {
+    var input = document.getElementById("postInput");
+    var text = input.value.trim();
+    if (!text) return;
+    var s = FH.state;
+    var id = FH.uid();
+    s.posts.unshift({ id: id, who: s.meId, text: text, ts: Date.now(), likes: [], comments: [] });
+    FH.save();
+    render();
+    scheduleWallEngagement(id);
+  }
+
+  function sendChat() {
+    var input = document.getElementById("chatInput");
+    var text = input.value.trim();
+    if (!text) return;
+    var s = FH.state;
+    s.messages.push({ id: FH.uid(), who: s.meId, text: text, ts: Date.now() });
+    FH.save();
+    render();
+    scheduleChatReply();
+  }
+
+  function toggleLike(id) {
+    var p = findPost(id); if (!p) return;
+    var s = FH.state;
+    var idx = p.likes.indexOf(s.meId);
+    if (idx === -1) p.likes.push(s.meId); else p.likes.splice(idx, 1);
+    FH.save();
+    render();
+  }
+
+  function sendComment(id) {
+    var input = document.querySelector('[data-cinput="' + id + '"]');
+    if (!input) return;
+    var text = input.value.trim();
+    if (!text) return;
+    var p = findPost(id); if (!p) return;
+    p.comments.push({ id: FH.uid(), who: FH.state.meId, text: text, ts: Date.now() });
+    FH.save();
+    render();
+  }
 
   // ---- Выполнение квеста ----
   function completeTask(id, el) {
@@ -134,6 +226,23 @@
     if (chk) { completeTask(parseInt(chk.getAttribute("data-check"), 10), chk); return; }
     var buy = e.target.closest("[data-buy]");
     if (buy) { askBuy(buy.getAttribute("data-buy")); return; }
+    var feedsub = e.target.closest("[data-feedsub]");
+    if (feedsub) { feedSub = feedsub.getAttribute("data-feedsub"); openPostId = null; render(); return; }
+    var like = e.target.closest("[data-like]");
+    if (like) { toggleLike(Number(like.getAttribute("data-like"))); return; }
+    var togglec = e.target.closest("[data-toggle-comments]");
+    if (togglec) {
+      var pid = Number(togglec.getAttribute("data-toggle-comments"));
+      openPostId = openPostId === pid ? null : pid;
+      render();
+      return;
+    }
+    var csend = e.target.closest("[data-csend]");
+    if (csend) { sendComment(Number(csend.getAttribute("data-csend"))); return; }
+    var postSend = e.target.closest("#postSend");
+    if (postSend) { sendPost(); return; }
+    var chatSend = e.target.closest("#chatSend");
+    if (chatSend) { sendChat(); return; }
     var reset = e.target.closest("[data-reset]");
     if (reset) {
       FH.openSheet({
@@ -148,6 +257,15 @@
   document.getElementById("nav").addEventListener("click", function (e) {
     var b = e.target.closest("[data-tab]");
     if (b) { tab = b.getAttribute("data-tab"); render(); }
+  });
+
+  screenEl.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    if (e.target.id === "chatInput") { e.preventDefault(); sendChat(); return; }
+    if (e.target.matches && e.target.matches("[data-cinput]")) {
+      e.preventDefault();
+      sendComment(Number(e.target.getAttribute("data-cinput")));
+    }
   });
 
   // Смена участника — демонстрация ролевой модели

@@ -18,6 +18,7 @@
 
   // ---- Значения по умолчанию (демо-семья) ----
   function defaults() {
+    var now = Date.now();
     return {
       meId: "dad",
       theme: "light",
@@ -36,6 +37,20 @@
         { id: 4, who: "dad",   ic: "🧾", txt: "Забрать куртку из химчистки", meta: "Пинг от Мамы 💬",      reward: 20, done: false, streak: 0 },
         { id: 5, who: "mom",   ic: "🥗", txt: "Меню на неделю",            meta: "Планировщик",           reward: 30, done: false, streak: 0 },
         { id: 6, who: "anya",  ic: "🗑️", txt: "Вынести мусор",             meta: "Пн / Ср / Пт",          reward: 10, done: false, streak: 0 }
+      ],
+      posts: [
+        { id: 1, who: "mom",  text: "Испекла яблочный пирог 🥧 налетайте, пока горячий!", ts: now - 2 * 3600e3,
+          likes: ["dad", "misha"], comments: [ { id: 1, who: "anya", text: "Уже бегу! 😍", ts: now - 2 * 3600e3 + 5 * 60e3 } ] },
+        { id: 2, who: "anya", text: "Сдала контрольную по математике на пятёрку! 🎉", ts: now - 26 * 3600e3,
+          likes: ["mom", "dad", "misha"], comments: [] },
+        { id: 3, who: "dad",  text: "В субботу едем всей семьёй на озеро 🚣 готовьте купальники", ts: now - 3 * 86400e3,
+          likes: ["mom"], comments: [ { id: 2, who: "misha", text: "Ураааа!!! 🙌", ts: now - 3 * 86400e3 + 40 * 60e3 } ] }
+      ],
+      messages: [
+        { id: 1, who: "mom",   text: "Всем привет! Как дела в школе? 👋", ts: now - 3 * 3600e3 },
+        { id: 2, who: "anya",  text: "Привет! Всё хорошо, контрольную сдала на 5 😄", ts: now - 2.8 * 3600e3 },
+        { id: 3, who: "dad",   text: "Умница! 🎉", ts: now - 2.5 * 3600e3 },
+        { id: 4, who: "misha", text: "а мне можно мороженое за это?", ts: now - 2 * 3600e3 }
       ]
     };
   }
@@ -77,6 +92,8 @@
           if (typeof saved.onboarded === "boolean") base.onboarded = saved.onboarded;
           if (Array.isArray(saved.users)) base.users = saved.users;
           if (Array.isArray(saved.tasks)) base.tasks = saved.tasks;
+          if (Array.isArray(saved.posts)) base.posts = saved.posts;
+          if (Array.isArray(saved.messages)) base.messages = saved.messages;
         }
       }
     } catch (e) { /* повреждённое хранилище — берём дефолты */ }
@@ -106,6 +123,22 @@
   // HTML аватара: реальное фото из VK, если есть, иначе эмодзи
   FH.avatarHTML = function (u) {
     return u.photo ? '<img src="' + u.photo + '" alt="">' : u.av;
+  };
+  FH.userById = function (id) {
+    var s = FH.state;
+    for (var i = 0; i < s.users.length; i++) if (s.users[i].id === id) return s.users[i];
+    return null;
+  };
+  // Уникальный id для новых постов/сообщений/комментариев
+  FH.uid = function () { return Date.now() + Math.floor(Math.random() * 1000); };
+  // Относительное время для ленты/чата
+  FH.timeAgo = function (ts) {
+    var min = Math.floor(Math.max(0, Date.now() - ts) / 60000);
+    if (min < 1) return "только что";
+    if (min < 60) return min + " мин";
+    var hrs = Math.floor(min / 60);
+    if (hrs < 24) return hrs + " ч";
+    return Math.floor(hrs / 24) + " дн";
   };
 
   FH.load();

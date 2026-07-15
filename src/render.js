@@ -7,6 +7,7 @@
 
   var NAV = [
     { id: "home",   g: "🏠", t: "Дом" },
+    { id: "feed",   g: "💬", t: "Лента" },
     { id: "tasks",  g: "✅", t: "Задачи" },
     { id: "shop",   g: "🛍️", t: "Магазин" },
     { id: "family", g: "👨‍👩‍👧‍👦", t: "Семья" },
@@ -69,6 +70,69 @@
       '<h2 class="sec">Твои квесты</h2>' + quests +
       '<h2 class="sec">Последнее фото</h2>' +
       '<div class="photo"><div class="cap">🎨 Рисунок Ани</div><div class="rx">🔥 4 · ❤️ 2</div></div>';
+  };
+
+  // ---- ЛЕНТА + ЧАТ ----
+  function renderComment(c) {
+    var cu = FH.userById(c.who) || {};
+    return '<div class="comment"><div class="mini-av" style="background:' + (cu.color || "#ccc") + '22">' + FH.avatarHTML(cu) + '</div>' +
+      '<div><b>' + (cu.name || "") + '</b> ' + c.text + '<div class="ctime">' + FH.timeAgo(c.ts) + '</div></div></div>';
+  }
+
+  function renderPost(p, openPostId) {
+    var u = FH.userById(p.who) || {};
+    var liked = p.likes.indexOf(FH.state.meId) !== -1;
+    var open = openPostId === p.id;
+    var commentsHTML = p.comments.map(renderComment).join("") ||
+      '<p class="nocm">Комментариев пока нет</p>';
+    return '<div class="card post" data-post="' + p.id + '">' +
+      '<div class="phead"><div class="mini-av" style="background:' + (u.color || "#ccc") + '22">' + FH.avatarHTML(u) + '</div>' +
+      '<div><div class="pname">' + (u.name || "") + '</div><div class="ptime">' + FH.timeAgo(p.ts) + '</div></div></div>' +
+      '<div class="ptext">' + p.text + '</div>' +
+      '<div class="pactions">' +
+        '<button class="pbtn ' + (liked ? "on" : "") + '" data-like="' + p.id + '">' + (liked ? "❤️" : "🤍") + ' <span>' + p.likes.length + '</span></button>' +
+        '<button class="pbtn" data-toggle-comments="' + p.id + '">💬 <span>' + p.comments.length + '</span></button>' +
+      '</div>' +
+      (open ? '<div class="comments">' + commentsHTML +
+        '<div class="cinput"><input type="text" placeholder="Комментарий..." data-cinput="' + p.id + '">' +
+        '<button data-csend="' + p.id + '">➤</button></div></div>' : '') +
+    '</div>';
+  }
+
+  FH.viewWall = function (openPostId) {
+    var s = FH.state;
+    var posts = s.posts.slice().sort(function (a, b) { return b.ts - a.ts; });
+    var composer = '<div class="card composer">' +
+      '<textarea id="postInput" placeholder="Что у вас нового?" rows="2"></textarea>' +
+      '<button class="postsend" id="postSend">Опубликовать</button></div>';
+    var list = posts.length
+      ? posts.map(function (p) { return renderPost(p, openPostId); }).join("")
+      : '<div class="card qmini"><div class="ic">📰</div><div class="tt">Пока нет новостей</div></div>';
+    return '<div class="hero-greet">Лента семьи</div>' +
+      '<p class="hero-sub">Делитесь моментами дня друг с другом</p>' + composer + list;
+  };
+
+  FH.viewChat = function () {
+    var s = FH.state;
+    var msgs = s.messages.slice().sort(function (a, b) { return a.ts - b.ts; });
+    var bubbles = msgs.map(function (m) {
+      var mine = m.who === s.meId;
+      var u = FH.userById(m.who) || {};
+      return '<div class="brow ' + (mine ? "mine" : "other") + '">' +
+        (!mine ? '<div class="mini-av" style="background:' + (u.color || "#ccc") + '22">' + FH.avatarHTML(u) + '</div>' : '') +
+        '<div class="bubble">' + (!mine ? '<div class="bname">' + (u.name || "") + '</div>' : '') +
+        '<div class="btext">' + m.text + '</div><div class="btime">' + FH.timeAgo(m.ts) + '</div></div></div>';
+    }).join("");
+    return '<div class="chat-list" id="chatList">' + bubbles + '</div>' +
+      '<div class="chat-input"><input type="text" id="chatInput" placeholder="Сообщение..." autocomplete="off">' +
+      '<button id="chatSend">➤</button></div>';
+  };
+
+  FH.viewFeed = function (sub, openPostId) {
+    var tabs = '<div class="feed-tabs">' +
+      '<button class="ftab ' + (sub !== "chat" ? "on" : "") + '" data-feedsub="wall">📰 Лента</button>' +
+      '<button class="ftab ' + (sub === "chat" ? "on" : "") + '" data-feedsub="chat">💬 Чат</button></div>';
+    return tabs + (sub === "chat" ? FH.viewChat() : FH.viewWall(openPostId));
   };
 
   // ---- ЗАДАЧИ ----

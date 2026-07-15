@@ -1,0 +1,11 @@
+# Render Blueprint — статический сайт (бесплатный тариф).
+# Деплой: New → Blueprint → выбрать этот репозиторий.
+services:
+  - type: web
+    name: family-hub
+    runtime: static
+    buildCommand: "echo no build step needed"
+    staticPublishPath: ./
+    envVars:
+      - key: SKIP_INSTALL_DEPS
+        value: "true"

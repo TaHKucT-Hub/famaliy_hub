@@ -297,9 +297,9 @@
         '<button class="skip" id="fsBack">Назад</button>';
     }
     return '<div class="oemo">🏡</div><h1>Добро пожаловать!</h1>' +
-      '<p>Создайте семью в Family Hub или присоединитесь к уже существующей по коду приглашения</p>' + err +
-      '<button class="obtn" id="fsCreate">Создать семью</button>' +
-      '<button class="obtn" id="fsJoin" style="margin-top:10px;background:linear-gradient(135deg,var(--turq),var(--turq-deep))">Присоединиться по коду</button>';
+      '<p><b>Если кто-то из вашей семьи уже пользуется Family Hub</b> — не создавайте новую семью, попросите у него код приглашения и нажмите «Присоединиться». Кнопка «Создать семью» — только для самого первого человека.</p>' + err +
+      '<button class="obtn" id="fsJoin" style="background:linear-gradient(135deg,var(--turq),var(--turq-deep))">Присоединиться по коду</button>' +
+      '<button class="obtn" id="fsCreate" style="margin-top:10px">Создать новую семью</button>';
   };
 
   // ---- АДМИНКА ----

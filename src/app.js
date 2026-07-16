@@ -318,7 +318,7 @@
     { emo: "♥", h: "Зарабатывай сердечки", p: "Выполняй квесты, помогай близким и получай ♥. Держи стрик 7 дней — награда удваивается." },
     { emo: "🛍️", h: "Трать на реальные бонусы", p: "Час планшета, выбор фильма, день без готовки, выходной на рыбалку. Магазин привилегий ждёт." }
   ];
-  function showOnboarding() {
+  function showOnboarding(afterClose) {
     var el = document.getElementById("onb");
     var step = 0;
     function draw() {
@@ -339,9 +339,28 @@
     function finish() {
       el.hidden = true;
       FH.prefs.onboarded = true; FH.savePrefs();
+      if (afterClose) afterClose();
     }
     el.hidden = false;
     draw();
+  }
+
+  // ---- Код приглашения крупно и надолго, а не тостом на 2 секунды ----
+  function showInviteCodeSheet(code) {
+    FH.openSheet({
+      emo: "🔑",
+      title: "Семья создана!",
+      text: 'Код приглашения: <b style="font-size:22px;letter-spacing:.06em">' + code + '</b>' +
+        '<br><br>Перешлите его остальным. На экране входа им нужно нажать «Присоединиться по коду», а не «Создать семью» — иначе каждый создаст свою отдельную семью и увидит только себя.',
+      okText: "Скопировать код",
+      single: true,
+      onOk: function () {
+        var done = function () { FH.toast("Код скопирован: " + code); };
+        if (navigator.clipboard) navigator.clipboard.writeText(code).then(done).catch(function () { FH.toast("Код: " + code); });
+        else FH.toast("Код: " + code);
+        FH.closeSheet();
+      }
+    });
   }
 
   // ---- Онбординг семьи: создать новую / вступить по коду ----
@@ -360,7 +379,7 @@
         FH.api.createFamily(name).then(function (resp) {
           FH.setToken(resp.token);
           el.hidden = true;
-          enterApp();
+          enterApp(function () { showInviteCodeSheet(resp.family.invite_code); });
         }).catch(function (e) { showFamilySetup("create", e.message); });
       };
       document.getElementById("fsCreateGo").onclick = go;
@@ -430,12 +449,7 @@
     if (quickAdd) { quickAddTask(); return; }
 
     var copyInv = e.target.closest("#copyInvite");
-    if (copyInv) {
-      var code = FH.state.family ? FH.state.family.invite_code : "";
-      if (navigator.clipboard) navigator.clipboard.writeText(code).then(function () { FH.toast("Код скопирован: " + code); }).catch(function () { FH.toast(code); });
-      else FH.toast(code);
-      return;
-    }
+    if (copyInv) { showInviteCodeSheet(FH.state.family ? FH.state.family.invite_code : ""); return; }
 
     var delDoc = e.target.closest("[data-del-doc]");
     if (delDoc) { deleteDocument(Number(delDoc.getAttribute("data-del-doc"))); return; }
@@ -518,13 +532,14 @@
   });
 
   // ---- Запуск ----
-  async function enterApp() {
+  async function enterApp(afterReady) {
     var data = await FH.api.bootstrap();
     FH.setBootstrap(data);
     render();
     loadDocuments();
     FH.ws.connect(refetch);
-    if (!FH.prefs.onboarded) showOnboarding();
+    if (!FH.prefs.onboarded) showOnboarding(afterReady);
+    else if (afterReady) afterReady();
   }
 
   async function boot() {

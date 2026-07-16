@@ -29,7 +29,7 @@ class CreateTaskIn(BaseModel):
 
 
 @router.post("")
-def create_task(body: CreateTaskIn, m: models.Membership = Depends(get_current_membership), db: Session = Depends(get_db)):
+async def create_task(body: CreateTaskIn, m: models.Membership = Depends(get_current_membership), db: Session = Depends(get_db)):
     who_id = body.who or m.id
     if who_id != m.id and m.role != "admin":
         raise HTTPException(403, "Назначать задачи другим может только админ")
@@ -46,11 +46,12 @@ def create_task(body: CreateTaskIn, m: models.Membership = Depends(get_current_m
     db.add(t)
     db.commit()
     db.refresh(t)
+    await manager.broadcast(m.family_id, "tasks")
     return task_out(t)
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: int, m: models.Membership = Depends(get_current_membership), db: Session = Depends(get_db)):
+async def delete_task(task_id: int, m: models.Membership = Depends(get_current_membership), db: Session = Depends(get_db)):
     t = db.get(models.Task, task_id)
     if not t or t.family_id != m.family_id:
         raise HTTPException(404, "Задача не найдена")
@@ -58,6 +59,7 @@ def delete_task(task_id: int, m: models.Membership = Depends(get_current_members
         raise HTTPException(403, "Нет доступа к этой задаче")
     db.delete(t)
     db.commit()
+    await manager.broadcast(m.family_id, "tasks")
     return {"ok": True}
 
 

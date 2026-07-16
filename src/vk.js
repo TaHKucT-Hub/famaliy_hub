@@ -2,12 +2,30 @@
    Интеграция с VK Bridge.
    Работает и внутри VK Mini App, и автономно (в обычном браузере) —
    во втором случае авторизация идёт в dev-режиме бэкенда (см. README).
+
+   Важно: vkBridge.send(...) ждёт ответа от родительского окна VK.
+   Если скрипт просто загрузился в обычном браузере (а не внутри
+   настоящего VK-клиента), этот ответ никогда не придёт и промис
+   зависнет навсегда. Поэтому каждый вызов моста обёрнут таймаутом —
+   иначе всё приложение встанет колом на экране загрузки.
    ============================================================ */
 (function () {
   "use strict";
   window.FH = window.FH || {};
 
   var bridge = window.vkBridge || null;
+  var BRIDGE_TIMEOUT = 2500;
+
+  function withTimeout(promise, fallback) {
+    return new Promise(function (resolve) {
+      var done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; resolve(fallback); } }, BRIDGE_TIMEOUT);
+      promise.then(
+        function (v) { if (!done) { done = true; clearTimeout(timer); resolve(v); } },
+        function () { if (!done) { done = true; clearTimeout(timer); resolve(fallback); } }
+      );
+    });
+  }
 
   FH.vk = {
     available: !!bridge,
@@ -17,21 +35,18 @@
       var out = {};
       new URLSearchParams(window.location.search).forEach(function (v, k) { out[k] = v; });
       if (!bridge) return Promise.resolve(out);
-      return bridge.send("VKWebAppGetLaunchParams")
-        .then(function (p) { return Object.assign(out, p || {}); })
-        .catch(function () { return out; });
+      return withTimeout(bridge.send("VKWebAppGetLaunchParams"), null)
+        .then(function (p) { return Object.assign(out, p || {}); });
     },
 
     // Имя/фото реального пользователя VK — для профиля при первой авторизации.
     getUserInfoSafe: function () {
       if (!bridge) return Promise.resolve({});
-      return bridge.send("VKWebAppGetUserInfo")
-        .then(function (info) {
-          if (!info) return {};
-          var name = [info.first_name, info.last_name].filter(Boolean).join(" ");
-          return { name: name, photo_url: info.photo_200 || info.photo_100 || "" };
-        })
-        .catch(function () { return {}; });
+      return withTimeout(bridge.send("VKWebAppGetUserInfo"), null).then(function (info) {
+        if (!info) return {};
+        var name = [info.first_name, info.last_name].filter(Boolean).join(" ");
+        return { name: name, photo_url: info.photo_200 || info.photo_100 || "" };
+      });
     },
 
     // Инициализация моста + подписка на смену темы VK (light/dark)
@@ -45,7 +60,7 @@
           }
         });
       } catch (e) {}
-      return bridge.send("VKWebAppInit", {}).then(function () { return true; }).catch(function () { return false; });
+      return withTimeout(bridge.send("VKWebAppInit", {}), null).then(function (v) { return !!v; });
     },
 
     // Тактильная отдача при награде (если поддерживается устройством)

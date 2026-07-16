@@ -70,6 +70,9 @@
       } else if (scope === "shop") {
         FH.SHOP = await FH.api.shop.list();
         if (tab === "shop" || (tab === "admin" && adminSection === "quests")) render();
+      } else if (scope === "documents") {
+        documents = await FH.api.files.listDocuments();
+        if (tab === "family") render();
       }
     } catch (e) { /* транзитная ошибка сети — подтянется на следующем событии */ }
   }
@@ -529,8 +532,8 @@
     applySoundBtn();
     FH.vk.initTheme(function (theme) { applyTheme(theme); FH.savePrefs(); });
 
-    var launch = await FH.vk.getLaunchParams();
-    var profile = FH.vk.available ? await FH.vk.getUserInfoSafe() : {};
+    var results = await Promise.all([FH.vk.getLaunchParams(), FH.vk.getUserInfoSafe()]);
+    var launch = results[0], profile = results[1];
 
     var authResp;
     try {

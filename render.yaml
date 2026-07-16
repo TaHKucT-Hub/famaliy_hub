@@ -1,11 +1,28 @@
-# Render Blueprint — статический сайт (бесплатный тариф).
-# Деплой: New → Blueprint → выбрать этот репозиторий.
+# Render Blueprint — бэкенд (FastAPI + Postgres) раздаёт и API, и фронтенд.
+# Деплой: dashboard.render.com → New → Blueprint → выбрать этот репозиторий.
+databases:
+  - name: familyhub-db
+    plan: free
+    databaseName: familyhub
+    user: familyhub
+
 services:
   - type: web
     name: family-hub
-    runtime: static
-    buildCommand: "echo no build step needed"
-    staticPublishPath: ./
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
-      - key: SKIP_INSTALL_DEPS
-        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: familyhub-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Секретный ключ VK Mini App (Настройки приложения → «Сервисный ключ доступа»
+      # это НЕ то, что нужно — берите «Защищённый ключ» / Secure key). Без него
+      # сервер работает в dev-режиме и не проверяет подпись запуска VK — задайте
+      # значение в Render Dashboard перед реальным запуском внутри VK.
+      - key: VK_APP_SECRET
+        sync: false

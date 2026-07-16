@@ -6,6 +6,8 @@ from ..db import get_db
 from .. import models
 from ..deps import get_current_membership
 from ..config import MAX_FILE_SIZE
+from ..ws import manager
+from ..serializers import ts
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -41,6 +43,8 @@ async def upload_file(
     db.add(asset)
     db.commit()
     db.refresh(asset)
+    if kind == "document":
+        await manager.broadcast(m.family_id, "documents")
     return {
         "id": asset.id, "url": f"/api/files/{asset.id}", "filename": asset.filename,
         "content_type": asset.content_type, "size": asset.size, "kind": asset.kind, "title": asset.title,
@@ -67,14 +71,14 @@ def list_documents(m: models.Membership = Depends(get_current_membership), db: S
         {
             "id": a.id, "url": f"/api/files/{a.id}", "filename": a.filename, "title": a.title,
             "content_type": a.content_type, "size": a.size,
-            "uploaded_by": a.uploaded_by_id, "ts": a.created_at.timestamp() * 1000,
+            "uploaded_by": a.uploaded_by_id, "ts": ts(a.created_at),
         }
         for a in assets
     ]
 
 
 @router.delete("/{file_id}")
-def delete_document(file_id: int, m: models.Membership = Depends(get_current_membership), db: Session = Depends(get_db)):
+async def delete_document(file_id: int, m: models.Membership = Depends(get_current_membership), db: Session = Depends(get_db)):
     asset = db.get(models.FileAsset, file_id)
     if not asset or asset.family_id != m.family_id:
         raise HTTPException(404, "Файл не найден")
@@ -82,4 +86,6 @@ def delete_document(file_id: int, m: models.Membership = Depends(get_current_mem
         raise HTTPException(403, "Удалить документ может только автор или админ")
     db.delete(asset)
     db.commit()
+    if asset.kind == "document":
+        await manager.broadcast(m.family_id, "documents")
     return {"ok": True}

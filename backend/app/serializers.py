@@ -1,8 +1,15 @@
+import datetime
+
 from . import models
 
 
 def ts(dt):
-    return dt.timestamp() * 1000 if dt else None
+    # Наши datetime всегда наивные UTC (utcnow()/utcfromtimestamp()). .timestamp()
+    # на наивном datetime трактует его как локальное время сервера — явно
+    # помечаем tzinfo=UTC, иначе на сервере не в UTC получаем сдвиг во времени.
+    if not dt:
+        return None
+    return dt.replace(tzinfo=datetime.timezone.utc).timestamp() * 1000
 
 
 def member_out(m: models.Membership):

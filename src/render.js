@@ -311,8 +311,21 @@
     }).join("");
   }
 
-  function viewAdminMembers() {
+  function invitationRow(inv) {
+    var avatar = inv.photo ? '<img src="' + inv.photo + '" alt="">' : '🙂';
+    return '<div class="card qmini"><div class="mini-av" style="background:#F5A62322">' + avatar + '</div>' +
+      '<div style="flex:1"><div class="tt" style="font-size:14px">' + inv.name + '</div><div class="mt">Роль: ' + inv.roleLabel + ' · ждёт первого входа</div></div>' +
+      '<a class="del-x" data-cancel-invite="' + inv.id + '">✕</a></div>';
+  }
+
+  function viewAdminMembers(invitations) {
     var s = FH.state;
+    var inviteBlock = '<div class="card composer">' +
+      '<label style="display:block;font-size:12px;color:var(--muted);font-weight:800;margin-bottom:6px">Роль для приглашённого</label>' +
+      '<select id="inviteRole" class="invite-select">' + roleOptions("child") + '</select>' +
+      '<button class="postsend" id="inviteFriendBtn" style="margin-top:10px;width:100%">👥 Выбрать друга из VK</button>' +
+    '</div>';
+    var pendingHTML = (invitations || []).map(invitationRow).join("");
     var rows = s.users.map(function (m) {
       return '<div class="card admember">' +
         '<div class="adm-head"><div class="mini-av" style="background:' + m.color + '22">' + FH.avatarHTML(m) + '</div><b>' + m.name + '</b>' +
@@ -328,7 +341,9 @@
         (m.id !== s.meId ? '<button class="linkbtn" data-remove-member="' + m.id + '" style="color:var(--coral)">Удалить из семьи</button>' : '') +
       '</div>';
     }).join("");
-    return rows;
+    return '<h2 class="sec">Пригласить в семью</h2>' + inviteBlock +
+      (pendingHTML ? '<h2 class="sec">Ожидают входа</h2>' + pendingHTML : '') +
+      '<h2 class="sec">Участники</h2>' + rows;
   }
 
   function viewAdminQuests() {
@@ -432,7 +447,7 @@
       '<h2 class="sec">По участникам</h2>' + rows;
   }
 
-  FH.viewAdmin = function (section, stats) {
+  FH.viewAdmin = function (section, stats, invitations) {
     var tabs = [
       { id: "members", t: "Участники" },
       { id: "quests", t: "Квесты и Магазин" },
@@ -447,7 +462,7 @@
     if (section === "quests") body = viewAdminQuests() + viewAdminShop();
     else if (section === "moderation") body = viewAdminModeration();
     else if (section === "stats") body = viewAdminStats(stats);
-    else body = viewAdminMembers();
+    else body = viewAdminMembers(invitations);
 
     return '<div class="hero-greet">Админка ⚙️</div><p class="hero-sub">Управление семьёй «' + (FH.state.family ? FH.state.family.name : "") + '»</p>' + nav + body;
   };

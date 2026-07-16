@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from .. import models
 from ..deps import require_admin, get_current_membership
-from ..serializers import member_out, shop_out
+from ..serializers import member_out, shop_out, invitation_out
 from ..ws import manager
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -112,6 +112,63 @@ async def delete_shop_item(item_id: int, admin: models.Membership = Depends(requ
     db.delete(item)
     db.commit()
     await manager.broadcast(admin.family_id, "shop")
+    return {"ok": True}
+
+
+# ---- Приглашения (выбор друга VK + назначение роли заранее) ----
+
+class InviteIn(BaseModel):
+    vkUserId: str
+    name: str = ""
+    photoUrl: str = ""
+    role: str = "child"
+    ageLabel: str = ""
+
+
+@router.post("/invite")
+async def create_invitation(body: InviteIn, admin: models.Membership = Depends(require_admin), db: Session = Depends(get_db)):
+    if body.role not in ROLES:
+        raise HTTPException(400, "Неизвестная роль")
+    vk_uid = body.vkUserId.strip()
+    if not vk_uid:
+        raise HTTPException(400, "Не указан VK ID")
+
+    existing_user = db.query(models.User).filter(models.User.vk_user_id == vk_uid).first()
+    if existing_user:
+        already = db.query(models.Membership).filter(models.Membership.user_id == existing_user.id).first()
+        if already:
+            if already.family_id == admin.family_id:
+                raise HTTPException(409, "Этот человек уже в вашей семье")
+            raise HTTPException(409, "Этот человек уже состоит в другой семье")
+
+    inv = db.query(models.Invitation).filter(
+        models.Invitation.family_id == admin.family_id, models.Invitation.vk_user_id == vk_uid,
+    ).first()
+    if not inv:
+        inv = models.Invitation(family_id=admin.family_id, vk_user_id=vk_uid)
+        db.add(inv)
+    inv.name, inv.photo_url, inv.role, inv.age_label = body.name, body.photoUrl, body.role, body.ageLabel
+    inv.invited_by_id = admin.id
+    db.commit()
+    db.refresh(inv)
+    await manager.broadcast(admin.family_id, "invitations")
+    return invitation_out(inv)
+
+
+@router.get("/invitations")
+def list_invitations(admin: models.Membership = Depends(require_admin), db: Session = Depends(get_db)):
+    invs = db.query(models.Invitation).filter(models.Invitation.family_id == admin.family_id).order_by(models.Invitation.created_at.desc()).all()
+    return [invitation_out(i) for i in invs]
+
+
+@router.delete("/invitations/{invitation_id}")
+async def cancel_invitation(invitation_id: int, admin: models.Membership = Depends(require_admin), db: Session = Depends(get_db)):
+    inv = db.get(models.Invitation, invitation_id)
+    if not inv or inv.family_id != admin.family_id:
+        raise HTTPException(404, "Приглашение не найдено")
+    db.delete(inv)
+    db.commit()
+    await manager.broadcast(admin.family_id, "invitations")
     return {"ok": True}
 
 

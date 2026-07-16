@@ -106,6 +106,9 @@
       updateShopItem: function (id, item) { return req("PATCH", "/api/admin/shop/" + id, item); },
       removeShopItem: function (id) { return req("DELETE", "/api/admin/shop/" + id); },
       stats: function () { return req("GET", "/api/admin/stats"); },
+      invite: function (payload) { return req("POST", "/api/admin/invite", payload); },
+      listInvitations: function () { return req("GET", "/api/admin/invitations"); },
+      cancelInvitation: function (id) { return req("DELETE", "/api/admin/invitations/" + id); },
     },
   };
 })();

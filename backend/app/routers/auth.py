@@ -6,6 +6,7 @@ from ..db import get_db
 from .. import models
 from ..security import verify_vk_signature, issue_token
 from ..deps import get_current_user
+from ..ws import manager
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -17,7 +18,7 @@ class VkAuthIn(BaseModel):
 
 
 @router.post("")
-def vk_auth(body: VkAuthIn, db: Session = Depends(get_db)):
+async def vk_auth(body: VkAuthIn, db: Session = Depends(get_db)):
     params = body.params or {}
     if not verify_vk_signature(params):
         raise HTTPException(401, "Подпись VK не прошла проверку")
@@ -42,6 +43,23 @@ def vk_auth(body: VkAuthIn, db: Session = Depends(get_db)):
             db.commit()
 
     membership = db.query(models.Membership).filter(models.Membership.user_id == user.id).first()
+
+    # Админ заранее пригласил этого VK-пользователя — принимаем приглашение
+    # автоматически, минуя экран "создать/присоединиться".
+    if not membership:
+        invite = db.query(models.Invitation).filter(models.Invitation.vk_user_id == vk_user_id).first()
+        if invite:
+            membership = models.Membership(
+                user_id=user.id, family_id=invite.family_id, role=invite.role,
+                age_label=invite.age_label, color=invite.color, avatar_emoji=invite.avatar_emoji,
+                hearts=0, xp=0,
+            )
+            db.add(membership)
+            db.delete(invite)
+            db.commit()
+            db.refresh(membership)
+            await manager.broadcast(membership.family_id, "members")
+            await manager.broadcast(membership.family_id, "invitations")
 
     token = issue_token(user.id, membership.id if membership else None, membership.family_id if membership else None)
     return {

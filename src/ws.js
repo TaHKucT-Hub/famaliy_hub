@@ -55,7 +55,7 @@
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible" && shouldRun && (!socket || socket.readyState > 1)) {
       connect();
-      ["tasks", "members", "feed", "chat", "shop", "documents"].forEach(function (s) { if (onChanged) onChanged(s); });
+      ["tasks", "members", "feed", "chat", "shop", "documents", "invitations"].forEach(function (s) { if (onChanged) onChanged(s); });
     }
   });
 })();

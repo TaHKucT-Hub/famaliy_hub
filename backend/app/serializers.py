@@ -68,6 +68,21 @@ def post_out(p: models.Post, likes, comments, files):
     }
 
 
+ROLE_LABELS = {"admin": "Админ", "parent": "Родитель", "teen": "Подросток", "child": "Ребёнок"}
+
+
+def invitation_out(inv: models.Invitation):
+    return {
+        "id": inv.id,
+        "vkUserId": inv.vk_user_id,
+        "name": inv.name or "Гость",
+        "photo": inv.photo_url or "",
+        "role": inv.role,
+        "roleLabel": ROLE_LABELS.get(inv.role, inv.role),
+        "ts": ts(inv.created_at),
+    }
+
+
 def message_out(msg: models.ChatMessage):
     return {
         "id": msg.id,

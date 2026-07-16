@@ -12,6 +12,7 @@
   var pendingPostFiles = [];
   var adminSection = "members";
   var adminStats = null;
+  var invitations = [];
   var documents = [];
   var screenEl = document.getElementById("screen");
 
@@ -46,7 +47,7 @@
     if (tab === "shop")   screenEl.innerHTML = FH.viewShop();
     if (tab === "family") screenEl.innerHTML = FH.viewFamily(documents);
     if (tab === "me")     screenEl.innerHTML = FH.viewProfile();
-    if (tab === "admin")  screenEl.innerHTML = isAdmin() ? FH.viewAdmin(adminSection, adminStats) : FH.viewHome();
+    if (tab === "admin")  screenEl.innerHTML = isAdmin() ? FH.viewAdmin(adminSection, adminStats, invitations) : FH.viewHome();
     if (tab === "feed" && feedSub === "chat") screenEl.scrollTop = screenEl.scrollHeight;
     else screenEl.scrollTop = 0;
   }
@@ -73,6 +74,9 @@
       } else if (scope === "documents") {
         documents = await FH.api.files.listDocuments();
         if (tab === "family") render();
+      } else if (scope === "invitations" && isAdmin()) {
+        invitations = await FH.api.admin.listInvitations();
+        if (tab === "admin" && adminSection === "members") render();
       }
     } catch (e) { /* транзитная ошибка сети — подтянется на следующем событии */ }
   }
@@ -259,6 +263,46 @@
   async function loadAdminStats() {
     try { adminStats = await FH.api.admin.stats(); if (tab === "admin" && adminSection === "stats") render(); }
     catch (e) { /* not admin or transient */ }
+  }
+  async function loadInvitations() {
+    try { invitations = await FH.api.admin.listInvitations(); if (tab === "admin" && adminSection === "members") render(); }
+    catch (e) { /* not admin or transient */ }
+  }
+  async function inviteFriend() {
+    var roleSel = document.getElementById("inviteRole");
+    var role = roleSel ? roleSel.value : "child";
+
+    if (!FH.vk.insideVK) {
+      // Вне настоящего VK пикер друзей недоступен — ручной ввод для теста.
+      var vkId = window.prompt("Dev-режим: VK ID друга для приглашения (внутри VK это будет пикер друзей)");
+      if (!vkId) return;
+      var name = window.prompt("Имя (для отображения в списке)") || "Гость";
+      try {
+        await FH.api.admin.invite({ vkUserId: vkId.trim(), name: name, photoUrl: "", role: role });
+        await loadInvitations();
+        FH.toast("Приглашение отправлено");
+      } catch (e) { FH.toast(e.message); }
+      return;
+    }
+
+    var friends = await FH.vk.getFriends();
+    if (!friends) { FH.toast("Не удалось открыть список друзей"); return; }
+    if (!friends.length) return; // пикер закрыли без выбора
+
+    var ok = 0, failMsg = "";
+    for (var i = 0; i < friends.length; i++) {
+      try {
+        await FH.api.admin.invite({ vkUserId: friends[i].id, name: friends[i].name, photoUrl: friends[i].photo, role: role });
+        ok++;
+      } catch (e) { failMsg = e.message; }
+    }
+    await loadInvitations();
+    if (ok) FH.toast(ok > 1 ? "Приглашения отправлены" : "Приглашение отправлено");
+    else if (failMsg) FH.toast(failMsg);
+  }
+  async function cancelInvitation(id) {
+    try { await FH.api.admin.cancelInvitation(id); await loadInvitations(); }
+    catch (e) { FH.toast(e.message); }
   }
   async function adminCreateTask() {
     var who = Number(document.getElementById("atWho").value);
@@ -458,6 +502,7 @@
     if (adminsec) {
       adminSection = adminsec.getAttribute("data-adminsec");
       if (adminSection === "stats") { adminStats = null; render(); loadAdminStats(); }
+      else if (adminSection === "members") { render(); loadInvitations(); }
       else render();
       return;
     }
@@ -479,6 +524,12 @@
 
     var addShop = e.target.closest("#addShopItem");
     if (addShop) { adminAddShopItem(); return; }
+
+    var inviteBtn = e.target.closest("#inviteFriendBtn");
+    if (inviteBtn) { inviteFriend(); return; }
+
+    var cancelInv = e.target.closest("[data-cancel-invite]");
+    if (cancelInv) { cancelInvitation(Number(cancelInv.getAttribute("data-cancel-invite"))); return; }
   });
 
   screenEl.addEventListener("change", function (e) {
@@ -515,6 +566,7 @@
     tab = b.getAttribute("data-tab");
     if (tab === "feed") openPostId = null;
     if (tab === "admin" && adminSection === "stats" && !adminStats) loadAdminStats();
+    if (tab === "admin" && adminSection === "members") loadInvitations();
     render();
   });
 

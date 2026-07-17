@@ -83,6 +83,24 @@ def invitation_out(inv: models.Invitation):
     }
 
 
+def wishlist_out(w: models.WishlistItem, viewer_id: int):
+    is_owner = w.membership_id == viewer_id
+    return {
+        "id": w.id,
+        "who": w.membership_id,
+        "title": w.title,
+        "desc": w.description,
+        "url": w.url,
+        "price": w.price,
+        "image": f"/api/files/{w.image_file_id}" if w.image_file_id else None,
+        "ts": ts(w.created_at),
+        "isOwner": is_owner,
+        # Владелец никогда не видит статус брони/подарка — это сюрприз.
+        "status": None if is_owner else w.status,
+        "reservedByMe": (not is_owner) and w.reserved_by_id == viewer_id,
+    }
+
+
 def message_out(msg: models.ChatMessage):
     return {
         "id": msg.id,

@@ -28,7 +28,7 @@
     { emo: "👑", nm: "Легенда",             on: false }
   ];
 
-  FH.state = { meId: null, family: null, users: [], tasks: [], posts: [], messages: [] };
+  FH.state = { meId: null, family: null, users: [], tasks: [], posts: [], messages: [], wishlist: [] };
   FH.SHOP = [];
 
   // ---- Локальные UI-настройки (per-device, не часть данных семьи) ----
@@ -52,6 +52,7 @@
     FH.state.tasks = data.tasks;
     FH.state.posts = data.posts;
     FH.state.messages = data.messages;
+    FH.state.wishlist = data.wishlist || [];
     FH.SHOP = data.shop;
   };
 

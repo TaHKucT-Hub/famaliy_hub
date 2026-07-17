@@ -223,6 +223,24 @@ h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--
 .taskadd .postsend{margin-left:0;width:38px;height:38px;padding:0;border-radius:50%;font-size:18px;display:grid;place-items:center}
 .invite-code{letter-spacing:.03em}
 
+/* ===== Вишлист ===== */
+.wish-card{padding:14px;margin-bottom:12px}
+.wish-top{display:flex;gap:12px}
+.wish-img{width:56px;height:56px;border-radius:14px;flex:none;overflow:hidden;background:var(--cream);
+  display:grid;place-items:center;font-size:26px}
+.wish-img img{width:100%;height:100%;object-fit:cover}
+.wish-info{flex:1;min-width:0}
+.wish-title{font-weight:900;font-size:15px;line-height:1.2}
+.wish-price{color:var(--coral);font-weight:900;font-size:13.5px;margin-top:2px}
+.wish-desc{color:var(--muted);font-weight:700;font-size:12.5px;margin-top:3px}
+.wish-link{display:inline-block;margin-top:5px;color:var(--turq-deep);font-weight:800;font-size:12.5px;text-decoration:none}
+.wish-actions{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.wish-actions .postsend{float:none;margin:0}
+.wish-badge{font-weight:800;font-size:12.5px;padding:5px 10px;border-radius:100px;background:var(--cream);color:var(--muted)}
+.wish-badge.mine{background:rgba(77,208,225,.15);color:var(--turq-deep)}
+.wish-badge.taken{background:rgba(0,0,0,.06)}
+.wish-badge.given{background:rgba(255,183,77,.18);color:var(--ochre-deep)}
+
 /* ===== Семья: документы ===== */
 .docrow{display:flex;align-items:center;gap:12px;padding:13px 16px;margin-bottom:10px}
 .docic{font-size:22px}

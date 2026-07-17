@@ -10,6 +10,7 @@
     { id: "feed",   g: "💬", t: "Лента" },
     { id: "tasks",  g: "✅", t: "Задачи" },
     { id: "shop",   g: "🛍️", t: "Магазин" },
+    { id: "wishlist", g: "🎁", t: "Вишлист" },
     { id: "family", g: "👨‍👩‍👧‍👦", t: "Семья" },
     { id: "me",     g: "⭐", t: "Профиль" },
     { id: "admin",  g: "⚙️", t: "Админ" }
@@ -218,6 +219,78 @@
     return '<div class="hero-greet">Магазин привилегий 🛍️</div>' +
       '<p class="hero-sub">Твой баланс: <b style="color:var(--coral)">' + me.hearts + '♥</b> — трать на реальные бонусы</p>' +
       '<div class="shop-grid" style="margin-top:14px">' + grid + '</div>' + note;
+  };
+
+  // ---- ВИШЛИСТ ----
+  function wishCard(w, isOwner) {
+    var img = w.image ? '<div class="wish-img"><img src="' + FH.fileUrl(w.image) + '" alt=""></div>' : '<div class="wish-img wish-img-ph">🎁</div>';
+    var price = w.price ? '<div class="wish-price">' + w.price + ' ₽</div>' : '';
+    var desc = w.desc ? '<div class="wish-desc">' + w.desc + '</div>' : '';
+    var link = w.url ? '<a class="wish-link" href="' + w.url + '" target="_blank" rel="noopener">Открыть ссылку ↗</a>' : '';
+
+    var actions = '';
+    if (isOwner) {
+      actions = '<div class="wish-actions">' +
+        '<a class="del-x" data-wish-del="' + w.id + '">Удалить</a></div>';
+    } else if (w.status === "given") {
+      actions = '<div class="wish-actions"><span class="wish-badge given">🎉 Подарено</span></div>';
+    } else if (w.status === "reserved" && w.reservedByMe) {
+      actions = '<div class="wish-actions"><span class="wish-badge mine">Забронировано тобой</span>' +
+        '<a class="del-x" data-wish-unreserve="' + w.id + '">Отменить бронь</a>' +
+        '<a class="del-x" data-wish-given="' + w.id + '">Подарено ✅</a></div>';
+    } else if (w.status === "reserved") {
+      actions = '<div class="wish-actions"><span class="wish-badge taken">Уже занято другим</span></div>';
+    } else {
+      actions = '<div class="wish-actions"><button class="postsend" data-wish-reserve="' + w.id + '">🎁 Забронировать</button></div>';
+    }
+
+    return '<div class="card wish-card">' +
+      '<div class="wish-top">' + img +
+      '<div class="wish-info"><div class="wish-title">' + w.title + '</div>' + price + desc + link + '</div></div>' +
+      actions + '</div>';
+  }
+
+  FH.viewWishlist = function (list, pendingImage) {
+    var s = FH.state;
+    var meId = s.meId;
+    var mine = list.filter(function (w) { return w.who === meId; });
+    var others = {};
+    var order = [];
+    list.forEach(function (w) {
+      if (w.who === meId) return;
+      if (!others[w.who]) { others[w.who] = []; order.push(w.who); }
+      others[w.who].push(w);
+    });
+
+    var pendingThumb = pendingImage
+      ? '<div class="pending-grid"><div class="pending-thumb"><img src="' + FH.fileUrl(pendingImage.url) + '" alt="">' +
+        '<a data-remove-wish-image="1">✕</a></div></div>'
+      : '';
+
+    var composer = '<div class="card composer">' +
+      '<input type="text" id="wishTitle" placeholder="Что хочешь получить в подарок?" maxlength="120">' +
+      '<input type="text" id="wishPrice" inputmode="numeric" placeholder="Цена, ₽ (необязательно)" style="margin-top:8px">' +
+      '<input type="text" id="wishUrl" placeholder="Ссылка на товар (необязательно)" style="margin-top:8px">' +
+      '<textarea id="wishDesc" placeholder="Комментарий: цвет, размер и т.д. (необязательно)" rows="2" style="margin-top:8px"></textarea>' +
+      pendingThumb +
+      '<div class="composer-row"><label class="attachbtn small">📷<input type="file" id="wishImageInput" accept="image/*" hidden></label>' +
+      '<button class="postsend" id="wishAddBtn">Добавить</button></div></div>';
+
+    var mineHTML = mine.length
+      ? mine.map(function (w) { return wishCard(w, true); }).join("")
+      : '<p style="color:var(--muted);font-weight:700;font-size:13px">Пока пусто — добавь то, о чём мечтаешь 🎁</p>';
+
+    var othersHTML = order.map(function (uid) {
+      var u = FH.userById(uid) || {};
+      var header = '<h2 class="sec" style="display:flex;align-items:center;gap:8px">' +
+        '<span class="mini-av" style="background:' + (u.color || "#ccc") + '22">' + FH.avatarHTML(u) + '</span>' + u.name + '</h2>';
+      return header + others[uid].map(function (w) { return wishCard(w, false); }).join("");
+    }).join("");
+
+    return '<div class="hero-greet">Вишлист семьи 🎁</div>' +
+      '<p class="hero-sub">Пишите, что хотите получить в подарок — бронь видна всем, кроме владельца желания, чтобы подарок остался сюрпризом</p>' +
+      '<h2 class="sec">Твои желания</h2>' + composer + mineHTML +
+      othersHTML;
   };
 
   // ---- СЕМЬЯ ----

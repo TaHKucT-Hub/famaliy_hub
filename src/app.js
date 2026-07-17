@@ -14,6 +14,7 @@
   var adminStats = null;
   var invitations = [];
   var documents = [];
+  var pendingWishImage = null;
   var screenEl = document.getElementById("screen");
 
   function isAdmin() { return FH.me().role === "admin"; }
@@ -45,6 +46,7 @@
     if (tab === "feed")   screenEl.innerHTML = FH.viewFeed(feedSub, openPostId, pendingPostFiles);
     if (tab === "tasks")  screenEl.innerHTML = FH.viewTasks();
     if (tab === "shop")   screenEl.innerHTML = FH.viewShop();
+    if (tab === "wishlist") screenEl.innerHTML = FH.viewWishlist(FH.state.wishlist, pendingWishImage);
     if (tab === "family") screenEl.innerHTML = FH.viewFamily(documents);
     if (tab === "me")     screenEl.innerHTML = FH.viewProfile();
     if (tab === "admin")  screenEl.innerHTML = isAdmin() ? FH.viewAdmin(adminSection, adminStats, invitations) : FH.viewHome();
@@ -77,6 +79,9 @@
       } else if (scope === "invitations" && isAdmin()) {
         invitations = await FH.api.admin.listInvitations();
         if (tab === "admin" && adminSection === "members") render();
+      } else if (scope === "wishlist") {
+        FH.state.wishlist = await FH.api.wishlist.list();
+        if (tab === "wishlist") render();
       }
     } catch (e) { /* транзитная ошибка сети — подтянется на следующем событии */ }
   }
@@ -238,6 +243,49 @@
   }
   async function deleteDocument(id) {
     try { await FH.api.files.removeDocument(id); documents = await FH.api.files.listDocuments(); render(); }
+    catch (e) { FH.toast(e.message); }
+  }
+
+  // ---- Вишлист ----
+  async function uploadWishImage(file) {
+    try {
+      var up = await FH.api.files.upload("wishlist", file);
+      pendingWishImage = { id: up.id, url: up.url };
+      render();
+    } catch (e) { FH.toast(e.message); }
+  }
+  async function addWish() {
+    var title = (document.getElementById("wishTitle").value || "").trim();
+    if (!title) { FH.toast("Введите название подарка"); return; }
+    var priceRaw = (document.getElementById("wishPrice").value || "").trim();
+    var price = priceRaw ? parseInt(priceRaw, 10) : null;
+    var url = (document.getElementById("wishUrl").value || "").trim();
+    var desc = (document.getElementById("wishDesc").value || "").trim();
+    try {
+      await FH.api.wishlist.create({
+        title: title, price: (price && price > 0) ? price : null, url: url, desc: desc,
+        imageFileId: pendingWishImage ? pendingWishImage.id : null,
+      });
+      pendingWishImage = null;
+      FH.state.wishlist = await FH.api.wishlist.list();
+      render();
+      FH.toast("Добавлено в вишлист 🎁");
+    } catch (e) { FH.toast(e.message); }
+  }
+  async function deleteWish(id) {
+    try { await FH.api.wishlist.remove(id); FH.state.wishlist = await FH.api.wishlist.list(); render(); }
+    catch (e) { FH.toast(e.message); }
+  }
+  async function reserveWish(id) {
+    try { await FH.api.wishlist.reserve(id); FH.state.wishlist = await FH.api.wishlist.list(); render(); FH.toast("Забронировано — владелец не увидит бронь, это сюрприз"); }
+    catch (e) { FH.toast(e.message); }
+  }
+  async function unreserveWish(id) {
+    try { await FH.api.wishlist.unreserve(id); FH.state.wishlist = await FH.api.wishlist.list(); render(); }
+    catch (e) { FH.toast(e.message); }
+  }
+  async function markWishGiven(id) {
+    try { await FH.api.wishlist.given(id); FH.state.wishlist = await FH.api.wishlist.list(); render(); FH.toast("Отмечено как подаренное 🎉"); }
     catch (e) { FH.toast(e.message); }
   }
 
@@ -558,6 +606,24 @@
 
     var cancelInv = e.target.closest("[data-cancel-invite]");
     if (cancelInv) { cancelInvitation(Number(cancelInv.getAttribute("data-cancel-invite"))); return; }
+
+    var wishAdd = e.target.closest("#wishAddBtn");
+    if (wishAdd) { addWish(); return; }
+
+    var wishRmImg = e.target.closest("[data-remove-wish-image]");
+    if (wishRmImg) { pendingWishImage = null; render(); return; }
+
+    var wishDel = e.target.closest("[data-wish-del]");
+    if (wishDel) { deleteWish(Number(wishDel.getAttribute("data-wish-del"))); return; }
+
+    var wishReserve = e.target.closest("[data-wish-reserve]");
+    if (wishReserve) { reserveWish(Number(wishReserve.getAttribute("data-wish-reserve"))); return; }
+
+    var wishUnreserve = e.target.closest("[data-wish-unreserve]");
+    if (wishUnreserve) { unreserveWish(Number(wishUnreserve.getAttribute("data-wish-unreserve"))); return; }
+
+    var wishGiven = e.target.closest("[data-wish-given]");
+    if (wishGiven) { markWishGiven(Number(wishGiven.getAttribute("data-wish-given"))); return; }
   });
 
   screenEl.addEventListener("change", function (e) {
@@ -567,6 +633,10 @@
     if (t.id === "chatPhotoInput") { if (t.files && t.files[0]) sendChatPhoto(t.files[0]); t.value = ""; return; }
     if (t.id === "docFileInput") {
       if (t.files && t.files[0]) uploadDocument(t.files[0], (document.getElementById("docTitleInput") || {}).value || "");
+      t.value = ""; return;
+    }
+    if (t.id === "wishImageInput") {
+      if (t.files && t.files[0]) uploadWishImage(t.files[0]);
       t.value = ""; return;
     }
     if (t.hasAttribute && t.hasAttribute("data-proof-input")) {

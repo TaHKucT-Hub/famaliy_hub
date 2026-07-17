@@ -156,6 +156,27 @@ class FileAsset(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+class WishlistItem(Base):
+    """Желание участника семьи. Бронь/статус подарка видны всем, КРОМЕ
+    владельца желания — иначе подарок перестаёт быть сюрпризом."""
+    __tablename__ = "wishlist_items"
+
+    id = Column(Integer, primary_key=True)
+    family_id = Column(Integer, ForeignKey("families.id"), nullable=False)
+    membership_id = Column(Integer, ForeignKey("memberships.id"), nullable=False)
+
+    title = Column(String, nullable=False)
+    description = Column(String, default="")
+    url = Column(String, default="")
+    price = Column(Integer, nullable=True)
+    image_file_id = Column(Integer, ForeignKey("files.id"), nullable=True)
+
+    status = Column(String, default="open")  # open | reserved | given
+    reserved_by_id = Column(Integer, ForeignKey("memberships.id"), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
 class Invitation(Base):
     """Админ приглашает конкретного VK-пользователя (из друзей) с заранее
     назначенной ролью. Когда этот vk_user_id первый раз авторизуется через

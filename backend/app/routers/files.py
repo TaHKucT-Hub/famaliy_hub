@@ -11,7 +11,7 @@ from ..serializers import ts
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
-ALLOWED_KINDS = {"avatar", "task_proof", "post_photo", "document"}
+ALLOWED_KINDS = {"avatar", "task_proof", "post_photo", "document", "wishlist"}
 
 
 @router.post("")

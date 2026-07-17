@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, engine
 from . import models  # noqa: F401 (registers tables on Base.metadata)
 from .config import FRONTEND_DIR, DEV_MODE
-from .routers import auth, family, bootstrap, tasks, shop, feed, chat, files, admin, profile, ws_router
+from .routers import auth, family, bootstrap, tasks, shop, feed, chat, files, admin, profile, ws_router, wishlist
 
 Base.metadata.create_all(bind=engine)
 
@@ -20,7 +20,8 @@ app.add_middleware(
 )
 
 for r in (auth.router, family.router, bootstrap.router, tasks.router, shop.router,
-          feed.router, chat.router, files.router, admin.router, profile.router, ws_router.router):
+          feed.router, chat.router, files.router, admin.router, profile.router, ws_router.router,
+          wishlist.router):
     app.include_router(r)
 
 

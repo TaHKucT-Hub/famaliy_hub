@@ -95,6 +95,16 @@
       removeDocument: function (id) { return req("DELETE", "/api/files/" + id); },
     },
 
+    wishlist: {
+      list: function () { return req("GET", "/api/wishlist"); },
+      create: function (w) { return req("POST", "/api/wishlist", w); },
+      update: function (id, w) { return req("PATCH", "/api/wishlist/" + id, w); },
+      remove: function (id) { return req("DELETE", "/api/wishlist/" + id); },
+      reserve: function (id) { return req("POST", "/api/wishlist/" + id + "/reserve"); },
+      unreserve: function (id) { return req("POST", "/api/wishlist/" + id + "/unreserve"); },
+      given: function (id) { return req("POST", "/api/wishlist/" + id + "/given"); },
+    },
+
     me: {
       setAvatar: function (fileId) { return req("PATCH", "/api/me/avatar", { fileId: fileId }); },
     },

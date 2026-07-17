@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from .. import models
 from ..deps import get_current_membership
-from ..serializers import member_out, task_out, shop_out, post_out, message_out
+from ..serializers import member_out, task_out, shop_out, post_out, message_out, wishlist_out
 
 router = APIRouter(prefix="/api", tags=["bootstrap"])
 
@@ -41,6 +41,11 @@ def bootstrap(m: models.Membership = Depends(get_current_membership), db: Sessio
         .order_by(models.ChatMessage.created_at.desc()).limit(100).all()
     )
 
+    wishlist = (
+        db.query(models.WishlistItem).filter(models.WishlistItem.family_id == m.family_id)
+        .order_by(models.WishlistItem.created_at.desc()).all()
+    )
+
     return {
         "me": {**member_out(m), "userId": m.user_id},
         "family": {"id": family.id, "name": family.name, "invite_code": family.invite_code},
@@ -52,6 +57,7 @@ def bootstrap(m: models.Membership = Depends(get_current_membership), db: Sessio
             for p in posts
         ],
         "messages": [message_out(msg) for msg in reversed(messages)],
+        "wishlist": [wishlist_out(w, m.id) for w in wishlist],
     }
 
 

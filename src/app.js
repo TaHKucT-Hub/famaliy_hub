@@ -268,25 +268,25 @@
     try { invitations = await FH.api.admin.listInvitations(); if (tab === "admin" && adminSection === "members") render(); }
     catch (e) { /* not admin or transient */ }
   }
-  async function inviteFriend() {
+  function currentInviteRole() {
     var roleSel = document.getElementById("inviteRole");
-    var role = roleSel ? roleSel.value : "child";
+    return roleSel ? roleSel.value : "child";
+  }
+
+  // Пикер друзей (VKWebAppGetFriends) во многих версиях VK доступен только
+  // из мобильного приложения — в браузерной версии он либо отклоняется,
+  // либо просто недоступен. Тогда просто подсказываем воспользоваться
+  // формой ручного ввода ниже, а не оставляем кнопку молча ничего не делающей.
+  async function inviteFriend() {
+    var role = currentInviteRole();
 
     if (!FH.vk.insideVK) {
-      // Вне настоящего VK пикер друзей недоступен — ручной ввод для теста.
-      var vkId = window.prompt("Dev-режим: VK ID друга для приглашения (внутри VK это будет пикер друзей)");
-      if (!vkId) return;
-      var name = window.prompt("Имя (для отображения в списке)") || "Гость";
-      try {
-        await FH.api.admin.invite({ vkUserId: vkId.trim(), name: name, photoUrl: "", role: role });
-        await loadInvitations();
-        FH.toast("Приглашение отправлено");
-      } catch (e) { FH.toast(e.message); }
+      FH.toast("Список друзей доступен только внутри VK — впишите VK ID вручную ниже");
       return;
     }
 
     var friends = await FH.vk.getFriends();
-    if (!friends) { FH.toast("Не удалось открыть список друзей"); return; }
+    if (!friends) { FH.toast("Список друзей недоступен в этой версии VK — впишите VK ID вручную ниже"); return; }
     if (!friends.length) return; // пикер закрыли без выбора
 
     var ok = 0, failMsg = "";
@@ -300,6 +300,31 @@
     if (ok) FH.toast(ok > 1 ? "Приглашения отправлены" : "Приглашение отправлено");
     else if (failMsg) FH.toast(failMsg);
   }
+
+  function parseVkId(raw) {
+    var s = raw.trim();
+    if (/^\d+$/.test(s)) return s;
+    var m = s.match(/id(\d+)/i);
+    if (m) return m[1];
+    m = s.match(/[?&]user_id=(\d+)/i);
+    if (m) return m[1];
+    return null;
+  }
+
+  async function inviteManual() {
+    var idInput = document.getElementById("inviteVkId");
+    var nameInput = document.getElementById("inviteName");
+    var vkId = parseVkId(idInput.value || "");
+    if (!vkId) { FH.toast("Нужен числовой VK ID (например 123456789 или ссылка vk.com/id123456789)"); return; }
+    var name = (nameInput.value || "").trim() || "Гость";
+    try {
+      await FH.api.admin.invite({ vkUserId: vkId, name: name, photoUrl: "", role: currentInviteRole() });
+      idInput.value = ""; nameInput.value = "";
+      await loadInvitations();
+      FH.toast("Приглашение отправлено");
+    } catch (e) { FH.toast(e.message); }
+  }
+
   async function cancelInvitation(id) {
     try { await FH.api.admin.cancelInvitation(id); await loadInvitations(); }
     catch (e) { FH.toast(e.message); }
@@ -528,6 +553,9 @@
     var inviteBtn = e.target.closest("#inviteFriendBtn");
     if (inviteBtn) { inviteFriend(); return; }
 
+    var inviteManualBtn = e.target.closest("#inviteManualBtn");
+    if (inviteManualBtn) { inviteManual(); return; }
+
     var cancelInv = e.target.closest("[data-cancel-invite]");
     if (cancelInv) { cancelInvitation(Number(cancelInv.getAttribute("data-cancel-invite"))); return; }
   });
@@ -554,6 +582,7 @@
     if (e.key !== "Enter") return;
     if (e.target.id === "chatInput") { e.preventDefault(); sendChat(); return; }
     if (e.target.id === "quickTaskInput") { e.preventDefault(); quickAddTask(); return; }
+    if (e.target.id === "inviteVkId" || e.target.id === "inviteName") { e.preventDefault(); inviteManual(); return; }
     if (e.target.matches && e.target.matches("[data-cinput]")) {
       e.preventDefault();
       sendComment(Number(e.target.getAttribute("data-cinput")));

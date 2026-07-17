@@ -324,6 +324,10 @@
       '<label style="display:block;font-size:12px;color:var(--muted);font-weight:800;margin-bottom:6px">Роль для приглашённого</label>' +
       '<select id="inviteRole" class="invite-select">' + roleOptions("child") + '</select>' +
       '<button class="postsend" id="inviteFriendBtn" style="margin-top:10px;width:100%">👥 Выбрать друга из VK</button>' +
+      '<p style="font-size:11.5px;color:var(--muted);font-weight:700;margin:12px 0 6px">Список друзей открывается только в мобильном приложении VK. Не сработало — впишите VK ID вручную:</p>' +
+      '<input type="text" id="inviteVkId" placeholder="Например: 123456789 или vk.com/id123456789">' +
+      '<input type="text" id="inviteName" placeholder="Имя (для отображения)" style="margin-top:8px">' +
+      '<button class="postsend" id="inviteManualBtn" style="margin-top:8px;width:100%;background:linear-gradient(135deg,var(--turq),var(--turq-deep))">Пригласить по VK ID</button>' +
     '</div>';
     var pendingHTML = (invitations || []).map(invitationRow).join("");
     var rows = s.users.map(function (m) {

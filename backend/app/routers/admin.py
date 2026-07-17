@@ -186,10 +186,15 @@ def _delete_family_cascade(db: Session, family_id: int):
     db.query(models.ShopItem).filter(models.ShopItem.family_id == family_id).delete(synchronize_session=False)
     db.query(models.WishlistItem).filter(models.WishlistItem.family_id == family_id).delete(synchronize_session=False)
     db.query(models.Invitation).filter(models.Invitation.family_id == family_id).delete(synchronize_session=False)
-    # Membership/FileAsset ссылаются друг на друга (аватар), поэтому сначала
-    # обнуляем avatar_file_id, иначе удаление files упрётся в FK.
+    # Membership и FileAsset ссылаются друг на друга по кругу (Membership.avatar_file_id
+    # -> files.id, а FileAsset.uploaded_by_id -> memberships.id) — на Postgres это
+    # запрещает удалить любую из двух таблиц, пока в другой остаётся ссылка на неё,
+    # поэтому сначала обнуляем оба FK и только потом удаляем обе таблицы.
     db.query(models.Membership).filter(models.Membership.family_id == family_id).update(
         {models.Membership.avatar_file_id: None}, synchronize_session=False
+    )
+    db.query(models.FileAsset).filter(models.FileAsset.family_id == family_id).update(
+        {models.FileAsset.uploaded_by_id: None}, synchronize_session=False
     )
     db.query(models.Membership).filter(models.Membership.family_id == family_id).delete(synchronize_session=False)
     db.query(models.FileAsset).filter(models.FileAsset.family_id == family_id).delete(synchronize_session=False)

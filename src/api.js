@@ -55,9 +55,6 @@
     authVk: function (params, name, photo_url) { return req("POST", "/api/auth", { params: params, name: name, photo_url: photo_url }); },
     whoami: function () { return req("GET", "/api/auth/me"); },
 
-    createFamily: function (name) { return req("POST", "/api/family/create", { name: name }); },
-    joinFamily: function (code) { return req("POST", "/api/family/join", { code: code }); },
-
     bootstrap: function () { return req("GET", "/api/bootstrap"); },
     members: function () { return req("GET", "/api/members"); },
 
@@ -119,6 +116,7 @@
       invite: function (payload) { return req("POST", "/api/admin/invite", payload); },
       listInvitations: function () { return req("GET", "/api/admin/invitations"); },
       cancelInvitation: function (id) { return req("DELETE", "/api/admin/invitations/" + id); },
+      pruneOtherFamilies: function () { return req("POST", "/api/admin/prune-other-families"); },
     },
   };
 })();

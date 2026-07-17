@@ -316,7 +316,7 @@
     }).join("") || '<p style="color:var(--muted);font-weight:700;font-size:13px">Пока нет документов</p>';
 
     return '<div class="hero-greet">Наша семья</div>' +
-      '<p class="hero-sub">' + s.users.length + ' участников · код приглашения <b class="invite-code" id="inviteCode">' + (s.family ? s.family.invite_code : "") + '</b> <a id="copyInvite" class="del-x" style="color:var(--turq-deep)">копировать</a></p>' +
+      '<p class="hero-sub">' + s.users.length + ' участников</p>' +
       '<h2 class="sec">Участники</h2>' + members +
       '<h2 class="sec">Документы семьи</h2>' +
       '<div class="card composer">' +
@@ -354,25 +354,13 @@
       '<h2 class="sec">Достижения</h2><div class="ach-grid">' + achs + '</div>';
   };
 
-  // ---- ОНБОРДИНГ СЕМЬИ (создать / вступить) ----
-  FH.viewFamilySetup = function (mode, error) {
-    var err = error ? '<p class="fs-error">' + error + '</p>' : '';
-    if (mode === "create") {
-      return '<div class="oemo">👨‍👩‍👧‍👦</div><h1>Новая семья</h1><p>Придумайте название — его увидят все участники</p>' +
-        '<input class="fs-input" id="fsFamilyName" placeholder="Например: Тонких" maxlength="40">' + err +
-        '<button class="obtn" id="fsCreateGo">Создать семью</button>' +
-        '<button class="skip" id="fsBack">Назад</button>';
-    }
-    if (mode === "join") {
-      return '<div class="oemo">🔑</div><h1>Есть код приглашения?</h1><p>Спросите его у того, кто уже создал семью в Family Hub</p>' +
-        '<input class="fs-input" id="fsCode" style="text-transform:uppercase" placeholder="Например: B5820F8E" maxlength="12">' + err +
-        '<button class="obtn" id="fsJoinGo">Присоединиться</button>' +
-        '<button class="skip" id="fsBack">Назад</button>';
-    }
-    return '<div class="oemo">🏡</div><h1>Добро пожаловать!</h1>' +
-      '<p><b>Если кто-то из вашей семьи уже пользуется Family Hub</b> — не создавайте новую семью, попросите у него код приглашения и нажмите «Присоединиться». Кнопка «Создать семью» — только для самого первого человека.</p>' + err +
-      '<button class="obtn" id="fsJoin" style="background:linear-gradient(135deg,var(--turq),var(--turq-deep))">Присоединиться по коду</button>' +
-      '<button class="obtn" id="fsCreate" style="margin-top:10px">Создать новую семью</button>';
+  // ---- ДОСТУП ЗАКРЫТ: приложение — одна семья, добавляет только админ ----
+  FH.viewFamilySetup = function () {
+    return '<div class="oemo">🔒</div><h1>Нужно приглашение</h1>' +
+      '<p>Family Hub здесь настроен на одну семью. Самостоятельно создать семью или присоединиться по коду нельзя — ' +
+      'попросите администратора семьи добавить вас: он выберет вас из друзей VK или введёт ваш VK ID ' +
+      'в разделе <b>Админ → Участники</b>.</p>' +
+      '<button class="obtn" id="fsRetry">Проверить снова</button>';
   };
 
   // ---- АДМИНКА ----
@@ -418,9 +406,18 @@
         (m.id !== s.meId ? '<button class="linkbtn" data-remove-member="' + m.id + '" style="color:var(--coral)">Удалить из семьи</button>' : '') +
       '</div>';
     }).join("");
+    var danger = '<div class="card composer" style="border:1px solid rgba(255,107,107,.35)">' +
+      '<b style="color:var(--coral);font-size:13.5px">⚠️ Опасная зона</b>' +
+      '<p style="font-size:12px;color:var(--muted);font-weight:700;margin:6px 0 10px">' +
+      'Приложение поддерживает только одну семью. Если где-то по ошибке создались другие семьи — ' +
+      'эта кнопка безвозвратно удалит их все вместе с данными, оставив только текущую.</p>' +
+      '<button class="postsend" id="pruneFamiliesBtn" style="width:100%;background:linear-gradient(135deg,var(--coral),#c0392b)">Удалить все остальные семьи</button>' +
+    '</div>';
+
     return '<h2 class="sec">Пригласить в семью</h2>' + inviteBlock +
       (pendingHTML ? '<h2 class="sec">Ожидают входа</h2>' + pendingHTML : '') +
-      '<h2 class="sec">Участники</h2>' + rows;
+      '<h2 class="sec">Участники</h2>' + rows +
+      '<h2 class="sec">Настройки семьи</h2>' + danger;
   }
 
   function viewAdminQuests() {

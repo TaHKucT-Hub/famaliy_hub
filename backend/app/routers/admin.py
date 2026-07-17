@@ -172,6 +172,42 @@ async def cancel_invitation(invitation_id: int, admin: models.Membership = Depen
     return {"ok": True}
 
 
+# ---- Единая семья: удаление остальных ----
+
+def _delete_family_cascade(db: Session, family_id: int):
+    post_ids = [pid for (pid,) in db.query(models.Post.id).filter(models.Post.family_id == family_id).all()]
+    if post_ids:
+        db.query(models.PostLike).filter(models.PostLike.post_id.in_(post_ids)).delete(synchronize_session=False)
+        db.query(models.Comment).filter(models.Comment.post_id.in_(post_ids)).delete(synchronize_session=False)
+        db.query(models.PostFile).filter(models.PostFile.post_id.in_(post_ids)).delete(synchronize_session=False)
+    db.query(models.Post).filter(models.Post.family_id == family_id).delete(synchronize_session=False)
+    db.query(models.ChatMessage).filter(models.ChatMessage.family_id == family_id).delete(synchronize_session=False)
+    db.query(models.Task).filter(models.Task.family_id == family_id).delete(synchronize_session=False)
+    db.query(models.ShopItem).filter(models.ShopItem.family_id == family_id).delete(synchronize_session=False)
+    db.query(models.WishlistItem).filter(models.WishlistItem.family_id == family_id).delete(synchronize_session=False)
+    db.query(models.Invitation).filter(models.Invitation.family_id == family_id).delete(synchronize_session=False)
+    # Membership/FileAsset ссылаются друг на друга (аватар), поэтому сначала
+    # обнуляем avatar_file_id, иначе удаление files упрётся в FK.
+    db.query(models.Membership).filter(models.Membership.family_id == family_id).update(
+        {models.Membership.avatar_file_id: None}, synchronize_session=False
+    )
+    db.query(models.Membership).filter(models.Membership.family_id == family_id).delete(synchronize_session=False)
+    db.query(models.FileAsset).filter(models.FileAsset.family_id == family_id).delete(synchronize_session=False)
+    db.query(models.Family).filter(models.Family.id == family_id).delete(synchronize_session=False)
+
+
+@router.post("/prune-other-families")
+def prune_other_families(admin: models.Membership = Depends(require_admin), db: Session = Depends(get_db)):
+    """Оставляет только семью вызывающего админа, безвозвратно удаляя все
+    остальные семьи и все их данные. Не может задеть свою семью — family_id
+    берётся из собственного membership-токена админа, а не из запроса."""
+    other_ids = [fid for (fid,) in db.query(models.Family.id).filter(models.Family.id != admin.family_id).all()]
+    for fid in other_ids:
+        _delete_family_cascade(db, fid)
+    db.commit()
+    return {"ok": True, "deletedFamilies": len(other_ids)}
+
+
 # ---- Статистика ----
 
 @router.get("/stats")

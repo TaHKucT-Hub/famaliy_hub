@@ -377,6 +377,21 @@
     try { await FH.api.admin.cancelInvitation(id); await loadInvitations(); }
     catch (e) { FH.toast(e.message); }
   }
+  function confirmPruneFamilies() {
+    FH.openSheet({
+      emo: "⚠️", title: "Удалить все остальные семьи?",
+      text: "Останется только эта семья. Все другие семьи и их данные (задачи, посты, чат, магазин, вишлист, файлы) будут удалены безвозвратно. Отменить нельзя.",
+      okText: "Удалить",
+      onOk: async function () {
+        try {
+          var resp = await FH.api.admin.pruneOtherFamilies();
+          FH.closeSheet();
+          FH.toast(resp.deletedFamilies ? "Удалено семей: " + resp.deletedFamilies : "Других семей не найдено");
+        } catch (e) { FH.closeSheet(); FH.toast(e.message); }
+      }
+    });
+  }
+
   async function adminCreateTask() {
     var who = Number(document.getElementById("atWho").value);
     var txt = document.getElementById("atTxt").value.trim();
@@ -462,62 +477,15 @@
     draw();
   }
 
-  // ---- Код приглашения крупно и надолго, а не тостом на 2 секунды ----
-  function showInviteCodeSheet(code) {
-    FH.openSheet({
-      emo: "🔑",
-      title: "Семья создана!",
-      text: 'Код приглашения: <b style="font-size:22px;letter-spacing:.06em">' + code + '</b>' +
-        '<br><br>Перешлите его остальным. На экране входа им нужно нажать «Присоединиться по коду», а не «Создать семью» — иначе каждый создаст свою отдельную семью и увидит только себя.',
-      okText: "Скопировать код",
-      single: true,
-      onOk: function () {
-        var done = function () { FH.toast("Код скопирован: " + code); };
-        if (navigator.clipboard) navigator.clipboard.writeText(code).then(done).catch(function () { FH.toast("Код: " + code); });
-        else FH.toast("Код: " + code);
-        FH.closeSheet();
-      }
-    });
-  }
-
-  // ---- Онбординг семьи: создать новую / вступить по коду ----
-  function showFamilySetup(mode, error) {
+  // ---- Доступа нет: одна семья, добавляет только админ ----
+  function showFamilySetup() {
     var el = document.getElementById("familySetup");
     el.hidden = false;
-    el.innerHTML = FH.viewFamilySetup(mode, error);
-
-    if (mode === "create" || mode === "join") {
-      document.getElementById("fsBack").onclick = function () { showFamilySetup("choice"); };
-    }
-    if (mode === "create") {
-      var nameInput = document.getElementById("fsFamilyName");
-      var go = function () {
-        var name = nameInput.value.trim() || "Наша семья";
-        FH.api.createFamily(name).then(function (resp) {
-          FH.setToken(resp.token);
-          el.hidden = true;
-          enterApp(function () { showInviteCodeSheet(resp.family.invite_code); });
-        }).catch(function (e) { showFamilySetup("create", e.message); });
-      };
-      document.getElementById("fsCreateGo").onclick = go;
-      nameInput.addEventListener("keydown", function (ev) { if (ev.key === "Enter") go(); });
-    } else if (mode === "join") {
-      var codeInput = document.getElementById("fsCode");
-      var goJoin = function () {
-        var code = codeInput.value.trim();
-        if (!code) return;
-        FH.api.joinFamily(code).then(function (resp) {
-          FH.setToken(resp.token);
-          el.hidden = true;
-          enterApp();
-        }).catch(function (e) { showFamilySetup("join", e.message); });
-      };
-      document.getElementById("fsJoinGo").onclick = goJoin;
-      codeInput.addEventListener("keydown", function (ev) { if (ev.key === "Enter") goJoin(); });
-    } else {
-      document.getElementById("fsCreate").onclick = function () { showFamilySetup("create"); };
-      document.getElementById("fsJoin").onclick = function () { showFamilySetup("join"); };
-    }
+    el.innerHTML = FH.viewFamilySetup();
+    document.getElementById("fsRetry").onclick = function () {
+      el.hidden = true;
+      authenticateAndEnter();
+    };
   }
 
   // ---- События внутри экрана (делегирование) ----
@@ -564,9 +532,6 @@
 
     var quickAdd = e.target.closest("#quickTaskAdd");
     if (quickAdd) { quickAddTask(); return; }
-
-    var copyInv = e.target.closest("#copyInvite");
-    if (copyInv) { showInviteCodeSheet(FH.state.family ? FH.state.family.invite_code : ""); return; }
 
     var delDoc = e.target.closest("[data-del-doc]");
     if (delDoc) { deleteDocument(Number(delDoc.getAttribute("data-del-doc"))); return; }
@@ -624,6 +589,9 @@
 
     var wishGiven = e.target.closest("[data-wish-given]");
     if (wishGiven) { markWishGiven(Number(wishGiven.getAttribute("data-wish-given"))); return; }
+
+    var pruneBtn = e.target.closest("#pruneFamiliesBtn");
+    if (pruneBtn) { confirmPruneFamilies(); return; }
   });
 
   screenEl.addEventListener("change", function (e) {
@@ -693,11 +661,7 @@
     else if (afterReady) afterReady();
   }
 
-  async function boot() {
-    applyTheme(FH.prefs.theme);
-    applySoundBtn();
-    FH.vk.initTheme(function (theme) { applyTheme(theme); FH.savePrefs(); });
-
+  async function authenticateAndEnter() {
     var results = await Promise.all([FH.vk.getLaunchParams(), FH.vk.getUserInfoSafe()]);
     var launch = results[0], profile = results[1];
 
@@ -712,8 +676,15 @@
     }
     FH.setToken(authResp.token);
 
-    if (authResp.needs_family) { showFamilySetup("choice"); return; }
+    if (authResp.needs_family) { showFamilySetup(); return; }
     await enterApp();
+  }
+
+  async function boot() {
+    applyTheme(FH.prefs.theme);
+    applySoundBtn();
+    FH.vk.initTheme(function (theme) { applyTheme(theme); FH.savePrefs(); });
+    await authenticateAndEnter();
   }
 
   boot();
